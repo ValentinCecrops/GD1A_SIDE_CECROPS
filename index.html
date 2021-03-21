@@ -20,7 +20,7 @@ var config = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 300 },
+            gravity: { y: 200 },
             debug: true
         }
     },
@@ -34,6 +34,7 @@ var config = {
 var player;
 var platforms;
 var health;
+var jetpackFuel = 500;
 var gameOver;
 var isFacingLeft = false;
 
@@ -44,19 +45,20 @@ function preload()
     this.load.image('background', 'assets/background.png');
     this.load.image('planets', 'assets/planets.png');
     this.load.image('platform1', 'assets/platform1.png');
+    this.load.image('platform2', 'assets/platform2.png');
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
 }
 
 function create()
 {
     this.add.image(640, 360, 'background').setScrollFactor(0.1);
-    this.add.image(640, 360, 'planets').setScrollFactor(0.3);
+    this.add.image(640, 360, 'planets').setScrollFactor(0.2);
 
     platforms = this.physics.add.staticGroup();
-    platforms.create(640, 452, 'platform1')
+    platforms.create(640, 460, 'platform2')
     
     player = this.physics.add.sprite(640, 360, 'player');
-    player.setMaxVelocity(300);
+    player.setMaxVelocityX(300);
 
     this.cameras.main.startFollow(player);
 
@@ -87,13 +89,13 @@ function create()
     this.anims.create({
         key: 'jumpLeft',
         frames: this.anims.generateFrameNumbers('player', {start: 2, end: 4}),
-        frameRate: 5,
+        frameRate: 7,
         repeat: -1
     })
     this.anims.create({
         key: 'jumpRight',
         frames: this.anims.generateFrameNumbers('player', {start: 15, end: 17}),
-        frameRate: 5,
+        frameRate: 7,
         repeat: -1
     })
     this.anims.create({
@@ -142,19 +144,19 @@ function update()
     else if (cursors.left.isDown && !player.body.touching.down)
     {
         player.setAccelerationX(-100);
-        player.anims.play('inAirLeft', true);
+        if (!(cursors.up.isDown && jetpackFuel > 0)) {player.anims.play('inAirLeft', true);}
         isFacingLeft = true;
     }
     else if (cursors.right.isDown && !player.body.touching.down)
     {
         player.setAccelerationX(100);
-        player.anims.play('inAirRight', true);
+        if (!(cursors.up.isDown && jetpackFuel > 0)) {player.anims.play('inAirRight', true);}
         isFacingLeft = false;
     }
     else if (player.body.velocity.x == 0 && player.body.touching.down)
     {
         if (isFacingLeft) {player.anims.play('idleLeft', true);}
-        else {player.anims.play('idleRight', true)}
+        else {player.anims.play('idleRight', true);}
     }
     else
     {
@@ -164,7 +166,7 @@ function update()
             if (isFacingLeft) {player.anims.play('stopLeft');}
             else {player.anims.play('stopRight');}
         }
-        else
+        else if (!(cursors.up.isDown && jetpackFuel > 0))
         {
             if (isFacingLeft) {player.anims.play('inAirLeft', true);}
             else {player.anims.play('inAirRight', true);}
@@ -172,10 +174,18 @@ function update()
     }
 
     //Déplacemets verticaux
-    if (cursors.up.isDown && player.body.touching.down)
+    if (cursors.up.isDown && jetpackFuel > 0)
     {
-        player.setVelocityY(-300);
+        player.setAccelerationY(-1000);
+        //jetpackFuel -= 10;
+        if (isFacingLeft) {player.anims.play('jumpLeft', true);}
+        else {player.anims.play('jumpRight', true);}
     }
+    else if (jetpackFuel < 50 && player.body.touching.down)
+    {
+        jetpackFuel += 1;
+        player.setAccelerationY(0);
+    } else {player.setAccelerationY(0);}
 
     //Applique du drag quand le perso est au sol uniquement
     if (player.body.touching.down) {player.setDragX(50);}
