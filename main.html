@@ -21,7 +21,7 @@ var config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 300 },
-            debug: false
+            debug: true
         }
     },
     scene: {
@@ -32,57 +32,158 @@ var config = {
 };
 
 var player;
+var platforms;
 var health;
 var gameOver;
+var isFacingLeft = false;
 
 var game = new Phaser.Game(config);
 
 function preload()
 {
-    this.load.image('bg', 'assets/background.png');
-    this.load.image('bgPlanets', 'assets/planets.png');
-    this.load.spritesheet('player', 'assets/player.png', { frameWidth: 22, frameHeight: 31 });
+    this.load.image('background', 'assets/background.png');
+    this.load.image('planets', 'assets/planets.png');
+    this.load.image('platform1', 'assets/platform1.png');
+    this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
 }
 
 function create()
 {
-    this.add.image(640, 360, 'bg');
-    this.add.image(640, 360, 'bgPlanets');
+    this.add.image(0, 0, 'background');
+    this.add.image(640, 360, 'planets');
+
+    platforms = this.physics.add.staticGroup();
+    platforms.create(640, 640, 'platform1')
+    
+    player = this.physics.add.sprite(640, 100, 'player');
+    player.setMaxVelocity(200);
+
+    this.cameras.main.setBounce(0, 0, bg.displayWidth, bg.displayHeigth);
+    this.cameras.main.startFollow(this.player);
+
+    this.physics.add.collider(player, platforms);
+
+    this.anims.create({
+        key: 'idleLeft',
+        frames: this.anims.generateFrameNumbers('player', {start: 8, end: 9}),
+        frameRate: 1.3,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'idleRight',
+        frames: this.anims.generateFrameNumbers('player', {start: 10, end: 11}),
+        frameRate: 1.3,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'walkLeft',
+        frames: this.anims.generateFrameNumbers('player', {start: 5, end: 7}),
+        frameRate: 5,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'walkRight',
+        frames: this.anims.generateFrameNumbers('player', {start: 12, end: 14}),
+        frameRate: 5,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'jumpLeft',
+        frames: this.anims.generateFrameNumbers('player', {start: 2, end: 4}),
+        frameRate: 5,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'jumpRight',
+        frames: this.anims.generateFrameNumbers('player', {start: 15, end: 17}),
+        frameRate: 5,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'inAirLeft',
+        frames: [{key: 'player', frame : 1}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'inAirRight',
+        frames: [{key: 'player', frame : 18}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'stopLeft',
+        frames: [{key: 'player', frame : 0}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'stopRight',
+        frames: [{key: 'player', frame : 19}],
+        frameRate: 1
+    })
     
     cursors = this.input.keyboard.createCursorKeys();
 }
 
 function update()
 {
-    if (gameOver)
-    {
-        return;
-    }
+    if (gameOver) {return;}
 
-    if (cursors.left.isDown)
+    //Déplacemets horizontaux
+    if (cursors.left.isDown && player.body.touching.down)
     {
-        player.setVelocityX(-300);
-        player.anims.play('left', true);
+        player.setAccelerationX(-200);
+        player.anims.play('walkLeft', true);
+        isFacingLeft = true;
     }
-    else if (cursors.right.isDown)
+    else if (cursors.right.isDown && player.body.touching.down)
     {
-        player.setVelocityX(300);
-        player.anims.play('right', true);
+        player.setAccelerationX(200);
+        player.anims.play('walkRight', true);
+        isFacingLeft = false;
+    }
+    else if (cursors.left.isDown && !player.body.touching.down)
+    {
+        player.setAccelerationX(-100);
+        player.anims.play('inAirLeft', true);
+        isFacingLeft = true;
+    }
+    else if (cursors.right.isDown && !player.body.touching.down)
+    {
+        player.setAccelerationX(100);
+        player.anims.play('inAirRight', true);
+        isFacingLeft = false;
+    }
+    else if (player.body.velocity.x == 0 && player.body.touching.down)
+    {
+        if (isFacingLeft) {player.anims.play('idleLeft');}
+        else {player.anims.play('idleRight')}
     }
     else
     {
-        player.setVelocityX(0);
-        player.anims.play('turn');
+        player.setAccelerationX(0);
+        if (player.body.velocity.x != 0 && player.body.touching.down)
+        {
+            if (isFacingLeft) {player.anims.play('stopLeft');}
+            else {player.anims.play('stopRight');}
+        }
+        else
+        {
+            if (isFacingLeft) {player.anims.play('idleLeft');}
+            else {player.anims.play('idleRight');}
+        }
     }
 
-    if (cursors.down.isDown)
-    {
-        player.setVelocityY(500)
-    }
+    //Déplacemets verticaux
     if (cursors.up.isDown && player.body.touching.down)
     {
-        player.setVelocityY(-700);
+        player.setVelocityY(-300);
     }
+
+    //Applique du drag quand le perso est au sol uniquement
+    if (player.body.touching.down) {player.setDragX(50);}
+    else {player.setDragX(0);}
+
+    //Machins de test
+    console.log(player.body.velocity.x);
 }
 
 </script>
