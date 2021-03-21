@@ -49,19 +49,16 @@ function preload()
 
 function create()
 {
-    this.add.image(0, 0, 'background');
-    this.add.image(640, 360, 'planets');
+    this.add.image(640, 360, 'background').setScrollFactor(0.1);
+    this.add.image(640, 360, 'planets').setScrollFactor(0.3);
 
     platforms = this.physics.add.staticGroup();
-    platforms.create(640, 640, 'platform1')
+    platforms.create(640, 452, 'platform1')
     
-    player = this.physics.add.sprite(640, 100, 'player');
-    player.setMaxVelocity(200);
+    player = this.physics.add.sprite(640, 360, 'player');
+    player.setMaxVelocity(300);
 
-    this.cameras.main.setBounce(0, 0, bg.displayWidth, bg.displayHeigth);
-    this.cameras.main.startFollow(this.player);
-
-    this.physics.add.collider(player, platforms);
+    this.cameras.main.startFollow(player);
 
     this.anims.create({
         key: 'idleLeft',
@@ -119,6 +116,8 @@ function create()
         frames: [{key: 'player', frame : 19}],
         frameRate: 1
     })
+
+    this.physics.add.collider(player, platforms);
     
     cursors = this.input.keyboard.createCursorKeys();
 }
@@ -154,8 +153,8 @@ function update()
     }
     else if (player.body.velocity.x == 0 && player.body.touching.down)
     {
-        if (isFacingLeft) {player.anims.play('idleLeft');}
-        else {player.anims.play('idleRight')}
+        if (isFacingLeft) {player.anims.play('idleLeft', true);}
+        else {player.anims.play('idleRight', true)}
     }
     else
     {
@@ -167,8 +166,8 @@ function update()
         }
         else
         {
-            if (isFacingLeft) {player.anims.play('idleLeft');}
-            else {player.anims.play('idleRight');}
+            if (isFacingLeft) {player.anims.play('inAirLeft', true);}
+            else {player.anims.play('inAirRight', true);}
         }
     }
 
