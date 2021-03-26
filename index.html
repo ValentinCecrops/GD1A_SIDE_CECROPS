@@ -33,12 +33,16 @@ var config = {
 
 var player;
 var platforms;
+var worms;
+var comets;
+var jetpack;
 var health = 3;
 var hasJetpack = false;
-var jetpackFuel = 500;
+var jetpackFuel = 60;
 var invincibilityCd = 0;
-var gameOver;
 var isFacingLeft = false;
+var cometDelay;
+var gameOver;
 
 var game = new Phaser.Game(config);
 
@@ -48,6 +52,8 @@ function preload()
     this.load.image('planets', 'assets/planets.png');
     this.load.image('platform1', 'assets/platform1.png');
     this.load.image('platform2', 'assets/platform2.png');
+    this.load.image('comet', 'assets/comet.png');
+    this.load.image('jetpack', 'assets/jetpack.png');
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
     this.load.spritesheet('hearts', 'assets/health.png', { frameWidth: 123, frameHeight: 33 });
     this.load.spritesheet('worm1', 'assets/worm1.png', { frameWidth: 60, frameHeight: 27 });
@@ -58,15 +64,28 @@ function create()
     this.add.image(640, 360, 'background').setScrollFactor(0.1);
     this.add.image(640, 360, 'planets').setScrollFactor(0.2);
 
-    healthDisplay = this.add.sprite(80, 35, 'hearts').setScrollFactor(0);
-
     platforms = this.physics.add.staticGroup();
-    platforms.create(0, 100, 'platform2')
+    platforms.create(0, 100, 'platform2');
+    platforms.create(600, 120, 'platform2');
+    platforms.create(1300, 30, 'platform2');
+    platforms.create(1800, 150, 'platform2');
+
+    jetpack = this.physics.add.image(1800, 76, 'jetpack');
+    jetpack.setGravityY(-200);
     
     player = this.physics.add.sprite(0, 0, 'player');
+    player.body.setSize(48, 93);
     player.setMaxVelocity(300, 400);
 
-    worm = this.physics.add.sprite(100, 0, 'worm1');
+    worms = this.physics.add.group();
+
+    var worm1 = this.physics.add.sprite(1400, -40, 'worm1');
+
+    worms.add(worm1);
+
+    comets = this.physics.add.group();
+
+    healthDisplay = this.add.sprite(80, 35, 'hearts').setScrollFactor(0);
 
     this.cameras.main.startFollow(player);
 
@@ -74,25 +93,25 @@ function create()
     this.anims.create({
         key: 'idleLeft',
         frames: this.anims.generateFrameNumbers('player', {start: 9, end: 10}),
-        frameRate: 1.3,
+        frameRate: 1,
         repeat: -1
     })
     this.anims.create({
         key: 'idleRight',
         frames: this.anims.generateFrameNumbers('player', {start: 11, end: 12}),
-        frameRate: 1.3,
+        frameRate: 1,
         repeat: -1
     })
     this.anims.create({
         key: 'walkLeft',
         frames: this.anims.generateFrameNumbers('player', {start: 5, end: 8}),
-        frameRate: 5,
+        frameRate: 7,
         repeat: -1
     })
     this.anims.create({
         key: 'walkRight',
         frames: this.anims.generateFrameNumbers('player', {start: 13, end: 16}),
-        frameRate: 5,
+        frameRate: 7,
         repeat: -1
     })
     this.anims.create({
@@ -163,15 +182,18 @@ function create()
     //ANIMATIONS ENNEMIS
     this.anims.create({
         key: 'worm1',
-        frames: this.anims.generateFrameNumbers('worm1', {start: 0, end: 3}),
+        frames: this.anims.generateFrameNumbers('worm1', {start: 0, end: 5}),
         frameRate: 1.2,
         repeat: -1
     })
 
-    this.physics.add.collider(player, platforms);
-    this.physics.add.collider(worm, platforms);
+    worm1.anims.play('worm1', true);
 
-    worm.anims.play('worm1', true);
+    this.physics.add.collider(player, platforms);
+    this.physics.add.collider(worms, platforms);
+    this.physics.add.collider(player, comets, hitComet, null, this);
+    this.physics.add.overlap(player, worms, loseHealth, function() {return invincibilityCd == 0;}, this);
+    this.physics.add.overlap(player, jetpack, takeJetpack, null, this);
     
     cursors = this.input.keyboard.createCursorKeys();
 }
@@ -183,45 +205,45 @@ function update()
     //Déplacemets horizontaux
     if (cursors.left.isDown && player.body.touching.down)
     {
-        player.setAccelerationX(-200);
+        player.setAccelerationX(-250);
         player.anims.play('walkLeft', true);
         isFacingLeft = true;
     }
     else if (cursors.right.isDown && player.body.touching.down)
     {
-        player.setAccelerationX(200);
+        player.setAccelerationX(250);
         player.anims.play('walkRight', true);
         isFacingLeft = false;
     }
     else if (cursors.left.isDown && !player.body.touching.down)
     {
         player.setAccelerationX(-100);
-        if (!(cursors.up.isDown && jetpackFuel > 0)) {player.anims.play('inAirLeft', true);}
+        if (!(cursors.up.isDown && jetpackFuel > 0)) player.anims.play('inAirLeft', true);
         isFacingLeft = true;
     }
     else if (cursors.right.isDown && !player.body.touching.down)
     {
         player.setAccelerationX(100);
-        if (!(cursors.up.isDown && jetpackFuel > 0)) {player.anims.play('inAirRight', true);}
+        if (!(cursors.up.isDown && jetpackFuel > 0)) player.anims.play('inAirRight', true);
         isFacingLeft = false;
     }
     else if (player.body.velocity.x == 0 && player.body.touching.down)
     {
-        if (isFacingLeft) {player.anims.play('idleLeft', true);}
-        else {player.anims.play('idleRight', true);}
+        if (isFacingLeft) player.anims.play('idleLeft', true);
+        else player.anims.play('idleRight', true);
     }
     else
     {
         player.setAccelerationX(0);
         if (player.body.velocity.x != 0 && player.body.touching.down)
         {
-            if (isFacingLeft) {player.anims.play('stopLeft');}
-            else {player.anims.play('stopRight');}
+            if (isFacingLeft) player.anims.play('stopLeft');
+            else player.anims.play('stopRight');
         }
         else if (!(cursors.up.isDown && jetpackFuel > 0))
         {
-            if (isFacingLeft) {player.anims.play('inAirLeft', true);}
-            else {player.anims.play('inAirRight', true);}
+            if (isFacingLeft) player.anims.play('inAirLeft', true);
+            else player.anims.play('inAirRight', true);
         }
     }
 
@@ -231,28 +253,34 @@ function update()
         if (cursors.up.isDown && jetpackFuel > 0)
         {
             player.setAccelerationY(-1000);
-            //jetpackFuel -= 10;
-            if (isFacingLeft) {player.anims.play('jetpackLeft', true);}
-            else {player.anims.play('jetpackRight', true);}
+            jetpackFuel -= 1;
+            if (isFacingLeft) player.anims.play('jetpackLeft', true);
+            else player.anims.play('jetpackRight', true);
         }
-        else if (jetpackFuel < 50 && player.body.touching.down)
+        else if (jetpackFuel < 500 && player.body.touching.down)
         {
             jetpackFuel += 1;
             player.setAccelerationY(0);
-        } else {player.setAccelerationY(0);}
+        }
+        else player.setAccelerationY(0);
     }
     else
     {
         if (cursors.up.isDown && player.body.touching.down)
         {
-            player.setVelocityY(-270);
+            player.setVelocityY(-220);
             if (isFacingLeft) player.anims.play('jumpLeft');
             else player.anims.play('jumpRight');
         }
+        else if (cursors.up.isDown && !player.body.touching.down)
+        {
+            if (isFacingLeft) player.anims.play('inAirLeft', true);
+            else player.anims.play('inAirRight', true);
+        }
     }
 
-    //Applique du drag quand le perso est au sol uniquement
-    if (player.body.touching.down) player.setDragX(80);
+    //Applique du drag quand le perso est au sol
+    if (player.body.touching.down) player.setDragX(100);
     else player.setDragX(0);
 
     //
@@ -263,43 +291,68 @@ function update()
     }
 
     //Machins de test
-    console.log(player.body.velocity.x);
+    if (cursors.down.isDown) addComet();
+    if (cometDelay > 0)
+    {
+        cometDelay -= 1;
+        if (cometDelay == 0) addComet();
+    }
 }
 
 function addComet()
 {
-    
+    cometDelay = Phaser.Math.Between(500, 1000);
+
+    let x = player.x + Phaser.Math.Between(200, 600)
+    let y = player.y - 500;
+
+    var comet = comets.create(x, y, 'comet');
+    comet.body.setSize(36, 36);
+    comet.body.setOffset(0, 51);
+    comet.setGravityY(-200);
+    comet.setVelocity(-400, 400);
+}
+
+function hitComet()
+{
+    healthDisplay.anims.play('hp0');
+    player.setTint(0xff0000);
+    this.physics.pause();
+    gameOver = true;
+}
+
+function takeJetpack()
+{
+    jetpack.disableBody(true, true);
+    hasJetpack = true;
 }
 
 function loseHealth()
 {
-    if (invincibilityCd == 0)
+    health -= 1;
+    switch (health)
     {
-        health -= 1;
-        switch (health)
-        {
-            case 3:
-                healthDisplay.anims.play('hp3');
-                break;
-            case 2:
-                healthDisplay.anims.play('hp2');
-                break;
-            case 1:
-                healthDisplay.anims.play('hp1');
-                break;
-            case 0:
-                healthDisplay.anims.play('hp0');
-                break;
-            default:
-                break;
-        }
-        player.setTint(0xff0000);
-        invincibilityCd = 15;
-        if (health == 0)
-        {
-            this.physics.pause();
-            gameOver = true;
-        }
+        case 3:
+            healthDisplay.anims.play('hp3');
+            break;
+        case 2:
+            healthDisplay.anims.play('hp2');
+            break;
+        case 1:
+            healthDisplay.anims.play('hp1');
+            break;
+        case 0:
+            healthDisplay.anims.play('hp0');
+            break;
+        default:
+            break;
+    }
+    player.setTint(0xff0000);
+    invincibilityCd = 100;
+    if (health == 0)
+    {
+        this.physics.pause();
+        gameOver = true;
     }
 }
 
