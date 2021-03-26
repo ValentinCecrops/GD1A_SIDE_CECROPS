@@ -252,12 +252,13 @@ function update()
     {
         if (cursors.up.isDown && jetpackFuel > 0)
         {
-            player.setAccelerationY(-1000);
+            if (player.body.touching.down) player.setVelocityY(-220);
+            player.setAccelerationY(-500);
             jetpackFuel -= 1;
             if (isFacingLeft) player.anims.play('jetpackLeft', true);
             else player.anims.play('jetpackRight', true);
         }
-        else if (jetpackFuel < 500 && player.body.touching.down)
+        else if (jetpackFuel < 60 && player.body.touching.down)
         {
             jetpackFuel += 1;
             player.setAccelerationY(0);
@@ -297,6 +298,7 @@ function update()
         cometDelay -= 1;
         if (cometDelay == 0) addComet();
     }
+    console.log(jetpackFuel);
 }
 
 function addComet()
