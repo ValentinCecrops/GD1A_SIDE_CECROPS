@@ -33,8 +33,10 @@ var config = {
 
 var player;
 var platforms;
-var health;
+var health = 3;
+var hasJetpack = false;
 var jetpackFuel = 500;
+var invincibilityCd = 0;
 var gameOver;
 var isFacingLeft = false;
 
@@ -47,6 +49,8 @@ function preload()
     this.load.image('platform1', 'assets/platform1.png');
     this.load.image('platform2', 'assets/platform2.png');
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
+    this.load.spritesheet('hearts', 'assets/health.png', { frameWidth: 123, frameHeight: 33 });
+    this.load.spritesheet('worm1', 'assets/worm1.png', { frameWidth: 60, frameHeight: 27 });
 }
 
 function create()
@@ -54,47 +58,62 @@ function create()
     this.add.image(640, 360, 'background').setScrollFactor(0.1);
     this.add.image(640, 360, 'planets').setScrollFactor(0.2);
 
+    healthDisplay = this.add.sprite(80, 35, 'hearts').setScrollFactor(0);
+
     platforms = this.physics.add.staticGroup();
-    platforms.create(640, 460, 'platform2')
+    platforms.create(0, 100, 'platform2')
     
-    player = this.physics.add.sprite(640, 360, 'player');
-    player.setMaxVelocityX(300);
+    player = this.physics.add.sprite(0, 0, 'player');
+    player.setMaxVelocity(300, 400);
+
+    worm = this.physics.add.sprite(100, 0, 'worm1');
 
     this.cameras.main.startFollow(player);
 
+    //ANIMATIONS JOUEUR
     this.anims.create({
         key: 'idleLeft',
-        frames: this.anims.generateFrameNumbers('player', {start: 8, end: 9}),
+        frames: this.anims.generateFrameNumbers('player', {start: 9, end: 10}),
         frameRate: 1.3,
         repeat: -1
     })
     this.anims.create({
         key: 'idleRight',
-        frames: this.anims.generateFrameNumbers('player', {start: 10, end: 11}),
+        frames: this.anims.generateFrameNumbers('player', {start: 11, end: 12}),
         frameRate: 1.3,
         repeat: -1
     })
     this.anims.create({
         key: 'walkLeft',
-        frames: this.anims.generateFrameNumbers('player', {start: 5, end: 7}),
+        frames: this.anims.generateFrameNumbers('player', {start: 5, end: 8}),
         frameRate: 5,
         repeat: -1
     })
     this.anims.create({
         key: 'walkRight',
-        frames: this.anims.generateFrameNumbers('player', {start: 12, end: 14}),
+        frames: this.anims.generateFrameNumbers('player', {start: 13, end: 16}),
         frameRate: 5,
         repeat: -1
     })
     this.anims.create({
         key: 'jumpLeft',
+        frames: [{key: 'player', frame : 5}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'jumpRight',
+        frames: [{key: 'player', frame : 13}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'jetpackLeft',
         frames: this.anims.generateFrameNumbers('player', {start: 2, end: 4}),
         frameRate: 7,
         repeat: -1
     })
     this.anims.create({
-        key: 'jumpRight',
-        frames: this.anims.generateFrameNumbers('player', {start: 15, end: 17}),
+        key: 'jetpackRight',
+        frames: this.anims.generateFrameNumbers('player', {start: 17, end: 19}),
         frameRate: 7,
         repeat: -1
     })
@@ -105,7 +124,7 @@ function create()
     })
     this.anims.create({
         key: 'inAirRight',
-        frames: [{key: 'player', frame : 18}],
+        frames: [{key: 'player', frame : 20}],
         frameRate: 1
     })
     this.anims.create({
@@ -115,18 +134,51 @@ function create()
     })
     this.anims.create({
         key: 'stopRight',
-        frames: [{key: 'player', frame : 19}],
+        frames: [{key: 'player', frame : 21}],
         frameRate: 1
     })
 
+    //ANIMATIONS VIE
+    this.anims.create({
+        key: 'hp3',
+        frames: [{key: 'hearts', frame : 0}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'hp2',
+        frames: [{key: 'hearts', frame : 1}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'hp1',
+        frames: [{key: 'hearts', frame : 2}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'hp0',
+        frames: [{key: 'hearts', frame : 3}],
+        frameRate: 1
+    })
+
+    //ANIMATIONS ENNEMIS
+    this.anims.create({
+        key: 'worm1',
+        frames: this.anims.generateFrameNumbers('worm1', {start: 0, end: 3}),
+        frameRate: 1.2,
+        repeat: -1
+    })
+
     this.physics.add.collider(player, platforms);
+    this.physics.add.collider(worm, platforms);
+
+    worm.anims.play('worm1', true);
     
     cursors = this.input.keyboard.createCursorKeys();
 }
 
 function update()
 {
-    if (gameOver) {return;}
+    if (gameOver) return;
 
     //Déplacemets horizontaux
     if (cursors.left.isDown && player.body.touching.down)
@@ -174,25 +226,81 @@ function update()
     }
 
     //Déplacemets verticaux
-    if (cursors.up.isDown && jetpackFuel > 0)
+    if (hasJetpack)
     {
-        player.setAccelerationY(-1000);
-        //jetpackFuel -= 10;
-        if (isFacingLeft) {player.anims.play('jumpLeft', true);}
-        else {player.anims.play('jumpRight', true);}
+        if (cursors.up.isDown && jetpackFuel > 0)
+        {
+            player.setAccelerationY(-1000);
+            //jetpackFuel -= 10;
+            if (isFacingLeft) {player.anims.play('jetpackLeft', true);}
+            else {player.anims.play('jetpackRight', true);}
+        }
+        else if (jetpackFuel < 50 && player.body.touching.down)
+        {
+            jetpackFuel += 1;
+            player.setAccelerationY(0);
+        } else {player.setAccelerationY(0);}
     }
-    else if (jetpackFuel < 50 && player.body.touching.down)
+    else
     {
-        jetpackFuel += 1;
-        player.setAccelerationY(0);
-    } else {player.setAccelerationY(0);}
+        if (cursors.up.isDown && player.body.touching.down)
+        {
+            player.setVelocityY(-270);
+            if (isFacingLeft) player.anims.play('jumpLeft');
+            else player.anims.play('jumpRight');
+        }
+    }
 
     //Applique du drag quand le perso est au sol uniquement
-    if (player.body.touching.down) {player.setDragX(50);}
-    else {player.setDragX(0);}
+    if (player.body.touching.down) player.setDragX(80);
+    else player.setDragX(0);
+
+    //
+    if (invincibilityCd > 0)
+    {
+        invincibilityCd -= 1;
+        if (invincibilityCd == 0) player.clearTint();
+    }
 
     //Machins de test
     console.log(player.body.velocity.x);
+}
+
+function addComet()
+{
+    
+}
+
+function loseHealth()
+{
+    if (invincibilityCd == 0)
+    {
+        health -= 1;
+        switch (health)
+        {
+            case 3:
+                healthDisplay.anims.play('hp3');
+                break;
+            case 2:
+                healthDisplay.anims.play('hp2');
+                break;
+            case 1:
+                healthDisplay.anims.play('hp1');
+                break;
+            case 0:
+                healthDisplay.anims.play('hp0');
+                break;
+            default:
+                break;
+        }
+        player.setTint(0xff0000);
+        invincibilityCd = 15;
+        if (health == 0)
+        {
+            this.physics.pause();
+            gameOver = true;
+        }
+    }
 }
 
 </script>
