@@ -31,16 +31,27 @@ var config = {
     }
 };
 
+//Joueur
 var player;
-var platforms;
-var worms;
-var comets;
-var jetpack;
+//Stats du joueur
 var health = 3;
 var hasJetpack = false;
 var jetpackFuel = 60;
 var invincibilityCd = 0;
 var isFacingLeft = false;
+//Plateformes
+var platforms;
+//Ennemis
+var worms;
+var worm1;
+var worm2;
+var worm3;
+var worm4;
+var comets;
+//Objets à récupérer
+var jetpack;
+var radio;
+//Autres
 var cometDelay;
 var gameOver;
 
@@ -54,9 +65,12 @@ function preload()
     this.load.image('platform2', 'assets/platform2.png');
     this.load.image('comet', 'assets/comet.png');
     this.load.image('jetpack', 'assets/jetpack.png');
+    this.load.image('radio', 'assets/radio.png');
+    this.load.image('gameover', 'assets/gameover.png');
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
     this.load.spritesheet('hearts', 'assets/health.png', { frameWidth: 123, frameHeight: 33 });
     this.load.spritesheet('worm1', 'assets/worm1.png', { frameWidth: 60, frameHeight: 27 });
+    this.load.spritesheet('worm2', 'assets/worm2.png', { frameWidth: 60, frameHeight: 27 });
 }
 
 function create()
@@ -66,12 +80,24 @@ function create()
 
     platforms = this.physics.add.staticGroup();
     platforms.create(0, 100, 'platform2');
-    platforms.create(600, 120, 'platform2');
+    platforms.create(600, 135, 'platform2');
     platforms.create(1300, 30, 'platform2');
-    platforms.create(1800, 150, 'platform2');
+    platforms.create(1800, 170, 'platform2');
+    platforms.create(2200, -150, 'platform1');
+    platforms.create(2550, -480, 'platform1');
+    platforms.create(1800, -680, 'platform2');
+    platforms.create(1200, -980, 'platform1');
+    platforms.create(1480, -1360, 'platform1');
+    platforms.create(2150, -1550, 'platform2');
+    platforms.create(2800, -1800, 'platform1');
+    platforms.create(3400, -1660, 'platform1');
+    platforms.create(4100, -1900, 'platform2');
 
-    jetpack = this.physics.add.image(1800, 76, 'jetpack');
+    jetpack = this.physics.add.image(1800, 96, 'jetpack');
     jetpack.setGravityY(-200);
+
+    radio = this.physics.add.image(4100, -1973, 'radio');
+    radio.setGravityY(-200);
     
     player = this.physics.add.sprite(0, 0, 'player');
     player.body.setSize(48, 93);
@@ -79,9 +105,11 @@ function create()
 
     worms = this.physics.add.group();
 
-    var worm1 = this.physics.add.sprite(1400, -40, 'worm1');
+    worm1 = this.physics.add.sprite(1400, -40, 'worm1');
+    worm2 = this.physics.add.sprite(1700, -870, 'worm2');
 
     worms.add(worm1);
+    worms.add(worm2);
 
     comets = this.physics.add.group();
 
@@ -186,19 +214,42 @@ function create()
         frameRate: 1.2,
         repeat: -1
     })
+    this.anims.create({
+        key: 'worm2Left',
+        frames: this.anims.generateFrameNumbers('worm2', {start: 0, end: 3}),
+        frameRate: 4,
+        repeat: -1
+    })
+    this.anims.create({
+        key: 'worm2Right',
+        frames: this.anims.generateFrameNumbers('worm2', {start: 4, end: 7}),
+        frameRate: 4,
+        repeat: -1
+    })
 
     worm1.anims.play('worm1', true);
+    
+    this.tweens.add({
+        targets: worm2,
+        x: 1900,
+        duration: 3000,
+        yoyo: true,
+        loop: -1,
+        onYoyo: function() {worm2.anims.play('worm2Left', true);},
+        onLoop: function() {worm2.anims.play('worm2Right', true);}
+    });
 
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(worms, platforms);
-    this.physics.add.collider(player, comets, hitComet, null, this);
     this.physics.add.overlap(player, worms, loseHealth, function() {return invincibilityCd == 0;}, this);
+    this.physics.add.overlap(player, comets, hitComet, null, this);
     this.physics.add.overlap(player, jetpack, takeJetpack, null, this);
+    this.physics.add.overlap(player, radio, takeRadio, null, this);
     
     cursors = this.input.keyboard.createCursorKeys();
 }
 
-function update()
+function update(time, delta)
 {
     if (gameOver) return;
 
@@ -291,6 +342,12 @@ function update()
         if (invincibilityCd == 0) player.clearTint();
     }
 
+    if (player.y >= 360)
+    {
+        playerDeath();
+        this.add.image(player.x, player.y, 'gameover');
+    }
+
     //Machins de test
     if (cursors.down.isDown) addComet();
     if (cometDelay > 0)
@@ -315,23 +372,23 @@ function addComet()
     comet.setVelocity(-400, 400);
 }
 
-function hitComet()
-{
-    healthDisplay.anims.play('hp0');
-    player.setTint(0xff0000);
-    this.physics.pause();
-    gameOver = true;
-}
-
 function takeJetpack()
 {
     jetpack.disableBody(true, true);
     hasJetpack = true;
 }
 
+function takeRadio()
+{
+    radio.disableBody(true, true);
+    gameOver = true;
+}
+
 function loseHealth()
 {
     health -= 1;
+    player.setTint(0xff0000);
+    invincibilityCd = 60;
     switch (health)
     {
         case 3:
@@ -344,18 +401,24 @@ function loseHealth()
             healthDisplay.anims.play('hp1');
             break;
         case 0:
-            healthDisplay.anims.play('hp0');
+            playerDeath();
+            this.add.image(player.x, player.y, 'gameover');
             break;
         default:
             break;
     }
-    player.setTint(0xff0000);
-    invincibilityCd = 100;
-    if (health == 0)
-    {
-        this.physics.pause();
-        gameOver = true;
-    }
+}
+
+function hitComet()
+{
+    this.add.image(player.x, player.y, 'gameover');
+    playerDeath();
+}
+function playerDeath()
+{
+    healthDisplay.anims.play('hp0');
+    player.disableBody(true, true);
+    gameOver = true;
 }
 
 </script>
