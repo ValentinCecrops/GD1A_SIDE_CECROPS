@@ -47,12 +47,13 @@ var worm1;
 var worm2;
 var worm3;
 var worm4;
+var worm5;
 var comets;
+var cometDelay = 5000;
 //Objets à récupérer
 var jetpack;
 var radio;
 //Autres
-var cometDelay;
 var gameOver;
 
 var game = new Phaser.Game(config);
@@ -77,6 +78,12 @@ function create()
 {
     this.add.image(640, 360, 'background').setScrollFactor(0.1);
     this.add.image(640, 360, 'planets').setScrollFactor(0.2);
+    this.add.image(2560, 360, 'background').setScrollFactor(0.1);
+    this.add.image(2560, 360, 'planets').setScrollFactor(0.2);
+    this.add.image(640, -720, 'background').setScrollFactor(0.1);
+    this.add.image(640, -720, 'planets').setScrollFactor(0.2);
+    this.add.image(2560, -720, 'background').setScrollFactor(0.1);
+    this.add.image(2560, -720, 'planets').setScrollFactor(0.2);
 
     platforms = this.physics.add.staticGroup();
     platforms.create(0, 100, 'platform2');
@@ -103,19 +110,22 @@ function create()
     player.body.setSize(48, 93);
     player.setMaxVelocity(300, 400);
 
+    comets = this.physics.add.group();
     worms = this.physics.add.group();
 
     worm1 = this.physics.add.sprite(1400, -40, 'worm1');
-    worm2 = this.physics.add.sprite(1700, -870, 'worm2');
+    worm2 = this.physics.add.sprite(1700, -770, 'worm2');
+    worm3 = this.physics.add.sprite(1480, -1430, 'worm1');
+    worm4 = this.physics.add.sprite(2050, -1640, 'worm2');
+    worm5 = this.physics.add.sprite(3400, -1730, 'worm1');
 
     worms.add(worm1);
     worms.add(worm2);
-
-    comets = this.physics.add.group();
+    worms.add(worm3);
+    worms.add(worm4);
+    worms.add(worm5);
 
     healthDisplay = this.add.sprite(80, 35, 'hearts').setScrollFactor(0);
-
-    this.cameras.main.startFollow(player);
 
     //ANIMATIONS JOUEUR
     this.anims.create({
@@ -228,6 +238,8 @@ function create()
     })
 
     worm1.anims.play('worm1', true);
+    worm3.anims.play('worm1', true);
+    worm5.anims.play('worm1', true);
     
     this.tweens.add({
         targets: worm2,
@@ -238,6 +250,15 @@ function create()
         onYoyo: function() {worm2.anims.play('worm2Left', true);},
         onLoop: function() {worm2.anims.play('worm2Right', true);}
     });
+    this.tweens.add({
+        targets: worm4,
+        x: 2250,
+        duration: 3000,
+        yoyo: true,
+        loop: -1,
+        onYoyo: function() {worm4.anims.play('worm2Left', true);},
+        onLoop: function() {worm4.anims.play('worm2Right', true);}
+    });
 
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(worms, platforms);
@@ -247,9 +268,10 @@ function create()
     this.physics.add.overlap(player, radio, takeRadio, null, this);
     
     cursors = this.input.keyboard.createCursorKeys();
+    this.cameras.main.startFollow(player);
 }
 
-function update(time, delta)
+function update()
 {
     if (gameOver) return;
 
@@ -348,21 +370,21 @@ function update(time, delta)
         this.add.image(player.x, player.y, 'gameover');
     }
 
-    //Machins de test
-    if (cursors.down.isDown) addComet();
     if (cometDelay > 0)
     {
         cometDelay -= 1;
         if (cometDelay == 0) addComet();
     }
-    console.log(jetpackFuel);
+
+    //Machins de test
+    if (cursors.down.isDown) addComet();
 }
 
 function addComet()
 {
-    cometDelay = Phaser.Math.Between(500, 1000);
+    cometDelay = Phaser.Math.Between(600, 1200);
 
-    let x = player.x + Phaser.Math.Between(200, 600)
+    let x = player.x + Phaser.Math.Between(100, 800)
     let y = player.y - 500;
 
     var comet = comets.create(x, y, 'comet');
@@ -380,7 +402,23 @@ function takeJetpack()
 
 function takeRadio()
 {
+    player.setAccelerationX(0);
+    player.setDragX(500)
+    if (isFacingLeft) player.anims.play('idleLeft', true);
+    else player.anims.play('idleRight', true);
     radio.disableBody(true, true);
+    gameOver = true;
+}
+
+function hitComet()
+{
+    this.add.image(player.x, player.y, 'gameover');
+    playerDeath();
+}
+function playerDeath()
+{
+    healthDisplay.anims.play('hp0');
+    player.disableBody(true, true);
     gameOver = true;
 }
 
@@ -407,18 +445,6 @@ function loseHealth()
         default:
             break;
     }
-}
-
-function hitComet()
-{
-    this.add.image(player.x, player.y, 'gameover');
-    playerDeath();
-}
-function playerDeath()
-{
-    healthDisplay.anims.play('hp0');
-    player.disableBody(true, true);
-    gameOver = true;
 }
 
 </script>
