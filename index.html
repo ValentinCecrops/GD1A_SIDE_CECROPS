@@ -21,7 +21,7 @@ var config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 200 },
-            debug: true
+            debug: false
         }
     },
     scene: {
@@ -35,9 +35,11 @@ var config = {
 var player;
 //Stats du joueur
 var health = 3;
-var hasJetpack = false;
+var healthDisplay;
 var jetpackFuel = 60;
+var fuelDisplay;
 var invincibilityCd = 0;
+var hasJetpack = false;
 var isFacingLeft = false;
 //Plateformes
 var platforms;
@@ -49,7 +51,7 @@ var worm3;
 var worm4;
 var worm5;
 var comets;
-var cometDelay = 5000;
+var cometDelay;
 //Objets à récupérer
 var jetpack;
 var radio;
@@ -67,11 +69,15 @@ function preload()
     this.load.image('comet', 'assets/comet.png');
     this.load.image('jetpack', 'assets/jetpack.png');
     this.load.image('radio', 'assets/radio.png');
+    this.load.image('msgStart', 'assets/msgStart.png');
+    this.load.image('msgJetpack', 'assets/msgJetpack.png');
+    this.load.image('msgEnd', 'assets/msgEnd.png');
     this.load.image('gameover', 'assets/gameover.png');
-    this.load.spritesheet('player', 'assets/player.png', { frameWidth: 66, frameHeight: 93 });
-    this.load.spritesheet('hearts', 'assets/health.png', { frameWidth: 123, frameHeight: 33 });
-    this.load.spritesheet('worm1', 'assets/worm1.png', { frameWidth: 60, frameHeight: 27 });
-    this.load.spritesheet('worm2', 'assets/worm2.png', { frameWidth: 60, frameHeight: 27 });
+    this.load.spritesheet('player', 'assets/player.png', {frameWidth: 66, frameHeight: 93});
+    this.load.spritesheet('hearts', 'assets/health.png', {frameWidth: 123, frameHeight: 33});
+    this.load.spritesheet('fuel', 'assets/fuel.png', {frameWidth: 36, frameHeight: 114});
+    this.load.spritesheet('worm1', 'assets/worm1.png', {frameWidth: 60, frameHeight: 27});
+    this.load.spritesheet('worm2', 'assets/worm2.png', {frameWidth: 60, frameHeight: 27});
 }
 
 function create()
@@ -105,6 +111,8 @@ function create()
 
     radio = this.physics.add.image(4100, -1973, 'radio');
     radio.setGravityY(-200);
+
+    this.add.image(0, -156, 'msgStart');
     
     player = this.physics.add.sprite(0, 0, 'player');
     player.body.setSize(48, 93);
@@ -113,7 +121,7 @@ function create()
     comets = this.physics.add.group();
     worms = this.physics.add.group();
 
-    worm1 = this.physics.add.sprite(1400, -40, 'worm1');
+    worm1 = this.physics.add.sprite(1350, -40, 'worm1');
     worm2 = this.physics.add.sprite(1700, -770, 'worm2');
     worm3 = this.physics.add.sprite(1480, -1430, 'worm1');
     worm4 = this.physics.add.sprite(2050, -1640, 'worm2');
@@ -217,6 +225,48 @@ function create()
         frameRate: 1
     })
 
+    //ANIMATIONS CARBURANT
+    this.anims.create({
+        key: 'fuel7',
+        frames: [{key: 'fuel', frame : 0}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel6',
+        frames: [{key: 'fuel', frame : 1}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel5',
+        frames: [{key: 'fuel', frame : 2}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel4',
+        frames: [{key: 'fuel', frame : 3}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel3',
+        frames: [{key: 'fuel', frame : 4}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel2',
+        frames: [{key: 'fuel', frame : 5}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel1',
+        frames: [{key: 'fuel', frame : 6}],
+        frameRate: 1
+    })
+    this.anims.create({
+        key: 'fuel0',
+        frames: [{key: 'fuel', frame : 7}],
+        frameRate: 1
+    })
+
     //ANIMATIONS ENNEMIS
     this.anims.create({
         key: 'worm1',
@@ -264,7 +314,7 @@ function create()
     this.physics.add.collider(worms, platforms);
     this.physics.add.overlap(player, worms, loseHealth, function() {return invincibilityCd == 0;}, this);
     this.physics.add.overlap(player, comets, hitComet, null, this);
-    this.physics.add.overlap(player, jetpack, takeJetpack, null, this);
+    this.physics.add.overlap(player, jetpack, takeJetpack, function() {return hasJetpack == false;}, this);
     this.physics.add.overlap(player, radio, takeRadio, null, this);
     
     cursors = this.input.keyboard.createCursorKeys();
@@ -357,32 +407,44 @@ function update()
     if (player.body.touching.down) player.setDragX(100);
     else player.setDragX(0);
 
-    //
+    //Frames d'invincibilité
     if (invincibilityCd > 0)
     {
         invincibilityCd -= 1;
         if (invincibilityCd == 0) player.clearTint();
     }
 
+    //Tue le perso s'il tombe
     if (player.y >= 360)
     {
         playerDeath();
         this.add.image(player.x, player.y, 'gameover');
     }
 
+    //Apparition des comètes
     if (cometDelay > 0)
     {
         cometDelay -= 1;
         if (cometDelay == 0) addComet();
     }
 
-    //Machins de test
-    if (cursors.down.isDown) addComet();
+    //Affichage du carburant
+    if (hasJetpack)
+    {
+        if (jetpackFuel == 60) fuelDisplay.anims.play('fuel7');
+        if (jetpackFuel >= 50 && jetpackFuel < 60) fuelDisplay.anims.play('fuel6');
+        if (jetpackFuel >= 40 && jetpackFuel < 50) fuelDisplay.anims.play('fuel5');
+        if (jetpackFuel >= 30 && jetpackFuel < 40) fuelDisplay.anims.play('fuel4');
+        if (jetpackFuel >= 20 && jetpackFuel < 30) fuelDisplay.anims.play('fuel3');
+        if (jetpackFuel >= 10 && jetpackFuel < 20) fuelDisplay.anims.play('fuel2');
+        if (jetpackFuel >= 1 && jetpackFuel < 10) fuelDisplay.anims.play('fuel1');
+        if (jetpackFuel == 0) fuelDisplay.anims.play('fuel0');
+    }
 }
 
 function addComet()
 {
-    cometDelay = Phaser.Math.Between(600, 1200);
+    cometDelay = Phaser.Math.Between(800, 1400);
 
     let x = player.x + Phaser.Math.Between(100, 800)
     let y = player.y - 500;
@@ -396,17 +458,21 @@ function addComet()
 
 function takeJetpack()
 {
-    jetpack.disableBody(true, true);
+    jetpack.disableBody(false, true);
+    this.add.image(1800, -30, 'msgJetpack');
+    fuelDisplay = this.add.sprite(36, 645, 'fuel').setScrollFactor(0);
+    cometDelay = 2000;
     hasJetpack = true;
 }
 
 function takeRadio()
 {
     player.setAccelerationX(0);
-    player.setDragX(500)
+    player.setDragX(500);
     if (isFacingLeft) player.anims.play('idleLeft', true);
     else player.anims.play('idleRight', true);
     radio.disableBody(true, true);
+    this.add.image(4100, -2120, 'msgEnd');
     gameOver = true;
 }
 
